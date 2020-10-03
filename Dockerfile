@@ -79,4 +79,10 @@ COPY *.mod /opt
 COPY *.sum /opt
 RUN go build -o tts
 
+# Last second fix.
+USER root
+ENV DISPLAY=:1
+RUN apt-get install -y xvfb
+USER xclient
+
 CMD /opt/tts

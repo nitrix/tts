@@ -1,8 +1,8 @@
 package main
 
 import (
+	"crypto/md5"
 	"fmt"
-	"github.com/google/uuid"
 	"io"
 	"io/ioutil"
 	"log"
@@ -12,6 +12,8 @@ import (
 )
 
 func main() {
+	go runFakeDisplay()
+
 	mux := http.NewServeMux()
 
 	fs := http.FileServer(http.Dir("./html"))
@@ -24,9 +26,26 @@ func main() {
 	}
 }
 
-func synthesize(w http.ResponseWriter, r *http.Request) {
-	filename := fmt.Sprintf("wavs/%s.wav", uuid.New())
+func runFakeDisplay() {
+	log.Println("Running Xvfb...")
 
+	args := []string {
+		":1",
+		"-screen",
+		"0",
+		"800x600x24",
+	}
+
+	cmd := exec.Command("Xvfb", args...)
+	err := cmd.Run()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	log.Println("Xvfb terminated")
+}
+
+func synthesize(w http.ResponseWriter, r *http.Request) {
 	text, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Println(err)
@@ -34,24 +53,29 @@ func synthesize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	args := []string{
-		"bin/balcon.exe",
-		"-n",
-		"IVONA 2 Justin",
-		"-t",
-		string(text),
-		"-w",
-		filename,
-	}
+	hash := fmt.Sprintf("%x", md5.Sum(text))
+	filename := fmt.Sprintf("wavs/%s.wav", hash)
 
-	cmd := exec.Command("wine", args...)
-	cmd.Stdin = r.Body
+	if !fileExists(filename) {
+		args := []string{
+			"bin/balcon.exe",
+			"-n",
+			"IVONA 2 Justin",
+			"-t",
+			string(text),
+			"-w",
+			filename,
+		}
 
-	err = cmd.Run()
-	if err != nil {
-		log.Println(err)
-		w.WriteHeader(500)
-		return
+		cmd := exec.Command("wine", args...)
+		cmd.Stdin = r.Body
+
+		err = cmd.Run()
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(500)
+			return
+		}
 	}
 
 	file, err := os.Open(filename)
@@ -81,4 +105,12 @@ func synthesize(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		return
 	}
+}
+
+func fileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
 }
