@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Justin text-to-speech</title>
+
+    <style>
+        audio:focus {
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Justin text-to-speech</h1>
+
+    <h2>API</h2>
+
+    You can make HTTP requests to the <strong>/synthesize</strong> endpoint with your text inside the body.
+    <br/> The HTTP response is raw <string>wav</string> audio.
+
+    <h2>Try it out</h2>
+
+    <form id="synthesizer">
+        <p><audio id="player" style="width: 100%" controls><source type="audio/wav" src=""></audio></p>
+
+        <p><textarea id="input" name="input" style="width: 100%; height: 300px;">Hello there. My name is Justin. I am one of the IVONA voices. I will read anything you want. Enter your text here and click synthesize.
+        </textarea></p>
+
+        <p><input type="submit" value="Synthesize"/></p>
+    </form>
+
+    <script>
+        const form = document.getElementById('synthesizer');
+        form.addEventListener('submit', (event) => {
+            event.preventDefault();
+
+            fetch('/synthesize', {
+                method: 'POST',
+                body: document.getElementById('input').value,
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const reader = new FileReader();
+
+                reader.onload = function() {
+                    const sound      = document.createElement('audio');
+                    sound.id       = 'player';
+                    sound.controls = 'controls';
+                    sound.autoplay = true;
+                    sound.style    = 'width: 100%';
+                    sound.src      = this.result;
+                    sound.type     = 'audio/wav';
+                    document.getElementById('player').replaceWith(sound);
+                };
+
+                reader.readAsDataURL(blob);
+            })
+            .catch((err) => {
+                console.error(err);
+            });
+        });
+    </script>
+</body>
+</html>
